@@ -1,6 +1,7 @@
 package control;
 
 import java.io.IOException;
+
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.sql.Connection;
@@ -18,12 +19,36 @@ import model.DriverManagerConnectionPool;
 import model.OrderModel;
 import model.UserBean;
 
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+import java.util.Base64;
+import java.security.SecureRandom;
+
+
 /**
  * Servlet implementation class Login
  */
 @WebServlet("/Login")
 public class Login extends HttpServlet {
 	private static final long serialVersionUID = 1L;
+	private static final int ITERATIONS = 10000;
+	private static final int KEY_LENGTH = 256;
+
+	private String hashPassword(String password, String salt) throws NoSuchAlgorithmException, InvalidKeySpecException {
+	    PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt.getBytes(), ITERATIONS, KEY_LENGTH);
+	    SecretKeyFactory keyFactory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+	    byte[] hashedPassword = keyFactory.generateSecret(spec).getEncoded();
+	    return Base64.getEncoder().encodeToString(hashedPassword);
+	}
+
+	private String generateSalt() {
+	    SecureRandom random = new SecureRandom();
+	    byte[] salt = new byte[16];
+	    random.nextBytes(salt);
+	    return Base64.getEncoder().encodeToString(salt);
+	}
        
     /**
      * @see HttpServlet#HttpServlet()
@@ -59,8 +84,9 @@ public class Login extends HttpServlet {
 			
 			while (rs.next()) {
 				if (email.compareTo(rs.getString(1)) == 0) {
-					String psw = checkPsw(password);
-					if (psw.compareTo(rs.getString(2)) == 0) {
+					String salt = rs.getString(3);
+	                String hashedPassword = hashPassword(password, salt);
+					if (hashedPassword.compareTo(rs.getString(2)) == 0) {
 						control = true;
 						UserBean registeredUser = new UserBean();
 						registeredUser.setEmail(rs.getString(1));

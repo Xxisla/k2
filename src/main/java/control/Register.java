@@ -1,6 +1,7 @@
 package control;
 
 import java.io.IOException;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -13,12 +14,35 @@ import javax.servlet.http.HttpServletResponse;
 
 import model.DriverManagerConnectionPool;
 
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+import java.util.Base64;
+import java.security.SecureRandom;
+
 /**
  * Servlet implementation class Register
  */
 @WebServlet("/Register")
 public class Register extends HttpServlet {
 	private static final long serialVersionUID = 1L;
+	private static final int ITERATIONS = 10000;
+	private static final int KEY_LENGTH = 256;
+
+	private String hashPassword(String password, String salt) throws NoSuchAlgorithmException, InvalidKeySpecException {
+	    PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt.getBytes(), ITERATIONS, KEY_LENGTH);
+	    SecretKeyFactory keyFactory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+	    byte[] hashedPassword = keyFactory.generateSecret(spec).getEncoded();
+	    return Base64.getEncoder().encodeToString(hashedPassword);
+	}
+
+	private String generateSalt() {
+	    SecureRandom random = new SecureRandom();
+	    byte[] salt = new byte[16];
+	    random.nextBytes(salt);
+	    return Base64.getEncoder().encodeToString(salt);
+	}
        
     /**
      * @see HttpServlet#HttpServlet()
@@ -42,6 +66,8 @@ public class Register extends HttpServlet {
 	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		String email = request.getParameter("email");
 		String password = request.getParameter("password");
+		String salt = generateSalt();
+		String hashedPassword = hashPassword(password, salt);
 		String nome = request.getParameter("nome");
 		String cognome = request.getParameter("cognome");
 		String indirizzo = request.getParameter("indirizzo");
@@ -59,7 +85,8 @@ public class Register extends HttpServlet {
 			//Aggiungi a AccountUser
 			PreparedStatement ps = con.prepareStatement(sql);
 			ps.setString(1, email);
-			ps.setString(2, password);
+			ps.setString(2, hashedPassword);
+			ps.setString(3, salt);
 			ps.setString(3, nome);
 			ps.setString(4, cognome);
 			ps.setString(5, indirizzo);
