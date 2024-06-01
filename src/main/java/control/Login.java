@@ -47,7 +47,7 @@ public class Login extends HttpServlet {
 	    SecureRandom random = new SecureRandom();
 	    byte[] salt = new byte[16];
 	    random.nextBytes(salt);
-	    return Base64.getEncoder().encodeToString(salt);
+	    return Base64.getEncoder().encodeToString(salt); 
 	}
        
     /**
